@@ -391,7 +391,7 @@ export default function BillerPage() {
         <div className="absolute top-20 -right-40 w-80 h-80 rounded-full bg-[#00C8FF]/5 blur-[120px]" />
       </div>
 
-      <div className={`relative z-10 max-w-[1600px] mx-auto w-full px-3.5 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6 flex flex-col gap-3.5 sm:gap-4.5 ${items.length > 0 && mobileTab === 'catalog' ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'}`}>
+      <div className={`relative z-10 max-w-[1600px] mx-auto w-full px-3 py-2.5 sm:px-6 sm:py-5 lg:px-8 lg:py-6 flex flex-col gap-3 sm:gap-4.5 ${items.length > 0 && mobileTab === 'catalog' ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'}`}>
         {/* Top Header Navigation */}
         <Header
           onReset={handleResetBill}
@@ -417,7 +417,7 @@ export default function BillerPage() {
           <button
             type="button"
             onClick={() => setMobileTab('catalog')}
-            className={`flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${
+            className={`flex items-center justify-center gap-2 min-h-[44px] py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all cursor-pointer ${
               mobileTab === 'catalog'
                 ? 'bg-[#151F33] text-[#F1F5F9] shadow-xs border border-[#26344A]'
                 : 'text-[#94A3B8] hover:text-[#F1F5F9]'
@@ -430,14 +430,25 @@ export default function BillerPage() {
           <button
             type="button"
             onClick={() => setMobileTab('bill')}
-            className={`flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${
+            className={`flex items-center justify-center gap-1.5 min-h-[44px] py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all cursor-pointer ${
               mobileTab === 'bill'
-                ? 'bg-[#10B981] text-[#080D19] shadow-xs font-extrabold'
+                ? 'bg-[#10B981] text-[#080D19] shadow-md shadow-[#10B981]/20 font-extrabold'
                 : 'text-[#94A3B8] hover:text-[#F1F5F9]'
             }`}
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Active Bill {items.length > 0 ? `(${items.length})` : ''}</span>
+            <ShoppingBag className="w-4 h-4 shrink-0" />
+            <span className="truncate">Active Bill</span>
+            {items.length > 0 && (
+              <span
+                className={`text-[11px] font-mono px-1.5 py-0.5 rounded-full ${
+                  mobileTab === 'bill'
+                    ? 'bg-[#080D19]/30 text-[#080D19] font-black'
+                    : 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40'
+                }`}
+              >
+                {items.length}
+              </span>
+            )}
           </button>
         </div>
 

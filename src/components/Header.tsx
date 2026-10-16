@@ -12,6 +12,7 @@ import {
   Calendar,
   Sparkles,
   HandCoins,
+  ChevronRight,
 } from 'lucide-react';
 import { Company } from '@/types/billing';
 import { formatCurrency } from '@/utils/numberToWords';
@@ -68,15 +69,16 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-2 sm:top-3 z-40 w-full rounded-xl backdrop-blur-xl bg-[#10182A]/95 border border-[#26344A] shadow-xl shadow-black/40 transition-all overflow-hidden">
+    <header className="sticky top-1 sm:top-3 z-40 w-full rounded-xl backdrop-blur-xl bg-[#10182A]/95 border border-[#26344A] shadow-xl shadow-black/40 transition-all overflow-hidden">
       {/* Sleek multi-color hairline accent along the top border */}
       <div className="h-[2px] w-full bg-gradient-to-r from-[#F59E0B] via-[#00C8FF] to-[#3B82F6] opacity-80" />
 
-      <div className="flex items-center justify-between gap-3 sm:gap-4 px-3.5 sm:px-5 lg:px-6 py-2.5 sm:py-3">
+      {/* Main Bar */}
+      <div className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 lg:px-6 py-2 sm:py-3">
         {/* ==================================================================== */}
-        {/* LEFT: Logo, Title & Integrated Division Switcher                      */}
+        {/* LEFT: Logo & Brand Meta                                              */}
         {/* ==================================================================== */}
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
           {/* Logo Badge */}
           <div className="relative group shrink-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center bg-[#151F33] border border-[#26344A] text-[#00C8FF] shadow-inner transition-transform group-hover:scale-105">
@@ -104,9 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
 
-              {/* Division Switcher Pills on Header (Desktop) */}
+              {/* Division Switcher Pills on Header (Tablet & Desktop) */}
               {currentCompany && onCompanyChange && (
-                <div className="hidden md:inline-flex items-center p-0.5 rounded-lg bg-[#080D19] border border-[#26344A]">
+                <div className="hidden sm:inline-flex items-center p-0.5 rounded-lg bg-[#080D19] border border-[#26344A]">
                   <button
                     type="button"
                     onClick={() => onCompanyChange('MAK')}
@@ -138,11 +140,11 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Subtitle / Active Status */}
-            <div className="flex items-center gap-1.5 text-[11px] text-[#94A3B8] truncate">
+            {/* Subtitle / Active Status (Desktop / Tablet) */}
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-[#94A3B8] truncate">
               {currentCompany ? (
                 <span className="flex items-center gap-1">
-                  <span className="hidden xs:inline">Division:</span>
+                  <span>Division:</span>
                   <span
                     className={`font-semibold ${
                       currentCompany === 'MAK' ? 'text-[#F59E0B]' : 'text-[#3B82F6]'
@@ -154,8 +156,8 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <span className="font-medium text-[#F1F5F9]">Retail POS Counter</span>
               )}
-              <span className="text-[#26344A] hidden xs:inline">•</span>
-              <span className="font-mono text-[10px] text-[#94A3B8] hidden xs:inline">
+              <span className="text-[#26344A]">•</span>
+              <span className="font-mono text-[10px] text-[#94A3B8]">
                 {invoiceNumber ? `#${invoiceNumber}` : 'Ready for Invoicing'}
               </span>
             </div>
@@ -163,7 +165,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* ==================================================================== */}
-        {/* CENTER: Active Cart Quick Tracker or Station Status Banner           */}
+        {/* CENTER: Active Cart Quick Tracker or Station Status Banner (Desktop) */}
         {/* ==================================================================== */}
         {itemCount > 0 ? (
           <button
@@ -198,10 +200,10 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* ==================================================================== */}
-        {/* RIGHT: Live Clock Widget, Clear Bill & Admin Controls                 */}
+        {/* RIGHT: Live Clock Widget, Clear Bill & Action Buttons                */}
         {/* ==================================================================== */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* Station Date & Clock Widget */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Station Date & Clock Widget (Tablet & Desktop) */}
           <div className="hidden sm:flex items-center gap-2.5 h-8 sm:h-8.5 px-3 rounded-lg bg-[#080D19] border border-[#26344A] text-[#94A3B8] shadow-xs">
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#94A3B8]">
               <Calendar className="w-3 h-3 text-[#94A3B8] shrink-0" />
@@ -219,12 +221,12 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onReset}
-              className="flex items-center gap-1.5 h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 active:scale-95 transition-all cursor-pointer shadow-xs"
+              className="flex items-center justify-center gap-1 h-8 sm:h-8.5 px-2 sm:px-3 rounded-lg text-xs font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 active:scale-95 transition-all cursor-pointer shadow-xs"
               title="Clear all products from current bill"
+              aria-label="Clear all products from current bill"
             >
-              <RotateCcw className="w-3 h-3 text-rose-400 shrink-0" />
-              <span className="hidden xs:inline">Clear Bill</span>
-              <span className="xs:hidden">Clear</span>
+              <RotateCcw className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-rose-400 shrink-0" />
+              <span className="hidden sm:inline">Clear Bill</span>
             </button>
           )}
 
@@ -237,8 +239,8 @@ export const Header: React.FC<HeaderProps> = ({
               title="Collect payment for pending customer credit / due"
             >
               <HandCoins className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-              <span className="hidden xs:inline">Credit Collection</span>
-              <span className="xs:hidden">Collect Due</span>
+              <span className="hidden sm:inline">Credit Collection</span>
+              <span className="sm:hidden font-bold">Due</span>
             </button>
           )}
 
@@ -246,14 +248,77 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenAdmin}
-            className="flex items-center gap-1.5 h-8 sm:h-8.5 px-3 rounded-lg text-xs font-semibold text-[#F1F5F9] bg-[#151F33] hover:bg-[#1A263D] active:scale-95 border border-[#26344A] hover:border-[#00C8FF]/50 transition-all cursor-pointer shadow-xs group"
+            className="flex items-center gap-1.5 h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold text-[#F1F5F9] bg-[#151F33] hover:bg-[#1A263D] active:scale-95 border border-[#26344A] hover:border-[#00C8FF]/50 transition-all cursor-pointer shadow-xs group"
             title="Open Admin Portal (Manage Products & Cloud Sales History)"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-[#00C8FF] group-hover:scale-110 transition-transform shrink-0" />
-            <span>Admin</span>
+            <span className="font-bold">Admin</span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] ml-0.5" />
           </button>
         </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* MOBILE CONTROL STRIP (Visible only on phone screens < sm)             */}
+      {/* ==================================================================== */}
+      <div className="sm:hidden border-t border-[#26344A]/70 px-3 py-1.5 bg-[#0C1322]/90 flex items-center justify-between gap-2">
+        {/* Division Switcher Segmented Pills */}
+        {currentCompany && onCompanyChange && (
+          <div className="flex items-center p-0.5 rounded-lg bg-[#080D19] border border-[#26344A] shrink-0">
+            <button
+              type="button"
+              onClick={() => onCompanyChange('MAK')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                currentCompany === 'MAK'
+                  ? 'bg-[#F59E0B]/25 text-[#FDE68A] border border-[#F59E0B]/50 shadow-xs'
+                  : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+              }`}
+            >
+              <Flame className="w-3 h-3 text-[#F59E0B] shrink-0" />
+              <span>MAK &amp; Honda</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onCompanyChange('BOSS')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                currentCompany === 'BOSS'
+                  ? 'bg-[#3B82F6]/25 text-[#BAE6FD] border border-[#3B82F6]/50 shadow-xs'
+                  : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+              }`}
+            >
+              <Shield className="w-3 h-3 text-[#3B82F6] shrink-0" />
+              <span>BOSS Auto</span>
+            </button>
+          </div>
+        )}
+
+        {/* Mobile Right: Cart Quick Jump or Active Status */}
+        {itemCount > 0 ? (
+          <button
+            type="button"
+            onClick={onViewBillMobile}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#10B981]/15 border border-[#10B981]/40 text-[#10B981] hover:bg-[#10B981]/25 active:scale-95 transition-all cursor-pointer min-w-0"
+            title="View Active Bill"
+          >
+            <ShoppingBag className="w-3 h-3 shrink-0" />
+            <span className="text-[11px] font-bold whitespace-nowrap">
+              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+            </span>
+            <span className="w-px h-2.5 bg-[#10B981]/40" />
+            <span className="text-[11px] font-bold font-mono text-[#00C8FF] truncate">
+              {formatCurrency(grandTotal)}
+            </span>
+            <ChevronRight className="w-3 h-3 shrink-0 text-[#10B981]" />
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 text-[10px] text-[#94A3B8] font-mono truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+            <span className="truncate">
+              {invoiceNumber ? `#${invoiceNumber}` : 'POS Terminal Ready'}
+            </span>
+          </div>
+        )}
       </div>
     </header>
   );
