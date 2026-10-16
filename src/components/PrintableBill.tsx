@@ -348,9 +348,9 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
               {paymentMode === 'SPLIT' 
                 ? 'SPLIT (CASH + UPI)' 
                 : paymentMode === 'CASH_UPI_CREDIT'
-                ? 'CASH + UPI + CREDIT'
+                ? (effectiveBalanceDue === 0 ? 'CASH + UPI + CREDIT (CLEARED ✓)' : `CASH + UPI + CREDIT (₹${effectiveBalanceDue.toFixed(0)} DUE)`)
                 : paymentMode === 'DUE'
-                ? 'CREDIT / DUE'
+                ? (effectiveBalanceDue === 0 ? 'CREDIT PAID IN FULL ✓' : effectiveBalanceDue < grandTotal ? `PARTIAL CREDIT (₹${effectiveBalanceDue.toFixed(0)} DUE)` : 'CREDIT / DUE')
                 : `PAID VIA ${paymentMode}`}
             </div>
             <div className="bill-number-text">
@@ -470,24 +470,26 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
 
             {/* CASH + UPI + CREDIT Breakdown */}
             {paymentMode === 'CASH_UPI_CREDIT' && (
-              <div style={{ marginTop: '14px', padding: '10px 12px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '4px', fontSize: '0.8rem', color: '#1e293b' }}>
+              <div style={{ marginTop: '14px', padding: '10px 12px', background: effectiveBalanceDue === 0 ? '#f0fdf4' : '#fffbeb', border: `1px solid ${effectiveBalanceDue === 0 ? '#bbf7d0' : '#fcd34d'}`, borderRadius: '4px', fontSize: '0.8rem', color: '#1e293b' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontWeight: 800, color: '#92400e' }}>Payment Breakdown (Cash + UPI + Credit):</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#fee2e2', color: '#b91c1c', borderRadius: '3px', border: '1px solid #fca5a5' }}>
-                    PARTIAL CREDIT
+                  <span style={{ fontWeight: 800, color: effectiveBalanceDue === 0 ? '#166534' : '#92400e' }}>
+                    Payment Breakdown (Cash + UPI + Credit):
+                  </span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: effectiveBalanceDue === 0 ? '#dcfce7' : '#fee2e2', color: effectiveBalanceDue === 0 ? '#15803d' : '#b91c1c', borderRadius: '3px', border: `1px solid ${effectiveBalanceDue === 0 ? '#86efac' : '#fca5a5'}` }}>
+                    {effectiveBalanceDue === 0 ? 'CREDIT SETTLED ✓' : 'PARTIAL CREDIT'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '6px' }}>
                   <span><strong>Cash Paid:</strong> ₹{(cashReceived || 0).toFixed(2)}</span>
                   <span><strong>UPI / Online:</strong> ₹{(upiReceived || 0).toFixed(2)}</span>
-                  <span><strong>Total Received:</strong> ₹{((cashReceived || 0) + (upiReceived || 0)).toFixed(2)}</span>
+                  <span><strong>Initial Received:</strong> ₹{((cashReceived || 0) + (upiReceived || 0)).toFixed(2)}</span>
                 </div>
-                <div style={{ paddingTop: '6px', borderTop: '1px dashed #f59e0b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#b91c1c', fontWeight: 800, fontSize: '0.86rem' }}>
-                    Remaining Due on Credit: ₹{effectiveBalanceDue.toFixed(2)}
+                <div style={{ paddingTop: '6px', borderTop: `1px dashed ${effectiveBalanceDue === 0 ? '#86efac' : '#f59e0b'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: effectiveBalanceDue === 0 ? '#15803d' : '#b91c1c', fontWeight: 800, fontSize: '0.86rem' }}>
+                    {effectiveBalanceDue === 0 ? 'Credit Cleared in Full: Fully Settled ✓' : `Remaining Due on Credit: ₹${effectiveBalanceDue.toFixed(2)}`}
                   </span>
-                  <span style={{ fontSize: '0.74rem', color: '#78350f', fontWeight: 600 }}>
-                    Pending Balance
+                  <span style={{ fontSize: '0.74rem', color: effectiveBalanceDue === 0 ? '#166534' : '#78350f', fontWeight: 600 }}>
+                    {effectiveBalanceDue === 0 ? 'All Cleared' : 'Pending Balance'}
                   </span>
                 </div>
                 {changeReturn > 0 && (
@@ -499,17 +501,52 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
             )}
 
             {paymentMode === 'DUE' && (
-              <div style={{ marginTop: '14px', padding: '10px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '4px', fontSize: '0.8rem', color: '#991b1b' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong>Credit Memo (100% Udhar):</strong>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#ef4444', color: '#ffffff', borderRadius: '3px' }}>
-                    FULL CREDIT
-                  </span>
+              effectiveBalanceDue === 0 ? (
+                <div style={{ marginTop: '14px', padding: '10px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', fontSize: '0.8rem', color: '#166534' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>Credit Settlement:</strong>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#22c55e', color: '#ffffff', borderRadius: '3px' }}>
+                      PAID IN FULL ✓
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '4px', fontSize: '0.82rem', fontWeight: 700 }}>
+                    Total ₹{grandTotal.toFixed(2)} Cleared in Full (Credit Settled ✓)
+                  </div>
                 </div>
-                <div style={{ marginTop: '4px', fontSize: '0.82rem', fontWeight: 700 }}>
-                  Total Balance Due: ₹{grandTotal.toFixed(2)} (Payment Pending)
+              ) : effectiveBalanceDue > 0 && effectiveBalanceDue < grandTotal ? (
+                <div style={{ marginTop: '14px', padding: '10px 12px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '4px', fontSize: '0.8rem', color: '#92400e' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 800, color: '#92400e' }}>Credit Memo (Partial Payment Received):</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#fef3c7', color: '#b45309', borderRadius: '3px', border: '1px solid #fde68a' }}>
+                      PARTIAL DUE
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                    <span><strong>Total Bill:</strong> ₹{grandTotal.toFixed(2)}</span>
+                    <span><strong>Paid So Far:</strong> ₹{(grandTotal - effectiveBalanceDue).toFixed(2)}</span>
+                  </div>
+                  <div style={{ paddingTop: '6px', borderTop: '1px dashed #f59e0b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#b91c1c', fontWeight: 800, fontSize: '0.86rem' }}>
+                      Remaining Due Left: ₹{effectiveBalanceDue.toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: '0.74rem', color: '#78350f', fontWeight: 600 }}>
+                      Pending Balance
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ marginTop: '14px', padding: '10px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '4px', fontSize: '0.8rem', color: '#991b1b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>Credit Memo (100% Udhar):</strong>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#ef4444', color: '#ffffff', borderRadius: '3px' }}>
+                      FULL CREDIT
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '4px', fontSize: '0.82rem', fontWeight: 700 }}>
+                    Total Balance Due: ₹{grandTotal.toFixed(2)} (Payment Pending)
+                  </div>
+                </div>
+              )
             )}
 
             {paymentMode === 'CASH' && cashReceived !== undefined && cashReceived > 0 && (

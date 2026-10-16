@@ -10,6 +10,7 @@ import {
   updateDoc,
   doc,
   limit,
+  where,
   Timestamp 
 } from 'firebase/firestore';
 import { Product, InvoiceData, CreditCollectionRecord, PaymentMode } from '@/types/billing';
@@ -30,6 +31,10 @@ export interface SavedSaleRecord extends Omit<InvoiceData, 'items'> {
     totalAmount: number;
   }>;
   createdAt?: Timestamp | Date | unknown;
+  lastCollectionVoucher?: string;
+  settlementNote?: string;
+  settledAt?: Timestamp | Date | unknown;
+  updatedAt?: Timestamp | Date | unknown;
 }
 
 // ==========================================
@@ -68,10 +73,10 @@ export async function saveSaleInvoice(invoice: InvoiceData): Promise<string | nu
       totalDiscount: invoice.totalDiscount,
       grandTotal: invoice.grandTotal,
       paymentMode: invoice.paymentMode,
-      cashReceived: invoice.cashReceived || null,
-      upiReceived: invoice.upiReceived || null,
-      changeDue: invoice.changeDue || null,
-      balanceDue: invoice.balanceDue || null,
+      cashReceived: invoice.cashReceived !== undefined && invoice.cashReceived !== null ? Number(invoice.cashReceived) : null,
+      upiReceived: invoice.upiReceived !== undefined && invoice.upiReceived !== null ? Number(invoice.upiReceived) : null,
+      changeDue: invoice.changeDue !== undefined && invoice.changeDue !== null ? Number(invoice.changeDue) : null,
+      balanceDue: invoice.balanceDue !== undefined && invoice.balanceDue !== null ? Number(invoice.balanceDue) : null,
       createdAt: serverTimestamp(),
     });
 
@@ -83,7 +88,7 @@ export async function saveSaleInvoice(invoice: InvoiceData): Promise<string | nu
   }
 }
 
-export async function getSalesHistory(maxRecords = 100): Promise<SavedSaleRecord[]> {
+export async function getSalesHistory(maxRecords = 150): Promise<SavedSaleRecord[]> {
   try {
     const salesRef = collection(db, 'sales');
     const q = query(salesRef, orderBy('createdAt', 'desc'), limit(maxRecords));
@@ -106,10 +111,12 @@ export async function getSalesHistory(maxRecords = 100): Promise<SavedSaleRecord
         totalDiscount: data.totalDiscount || 0,
         grandTotal: data.grandTotal || 0,
         paymentMode: data.paymentMode || 'CASH',
-        cashReceived: data.cashReceived || undefined,
-        upiReceived: data.upiReceived || undefined,
-        changeDue: data.changeDue || undefined,
-        balanceDue: data.balanceDue || undefined,
+        cashReceived: data.cashReceived !== undefined && data.cashReceived !== null ? Number(data.cashReceived) : undefined,
+        upiReceived: data.upiReceived !== undefined && data.upiReceived !== null ? Number(data.upiReceived) : undefined,
+        changeDue: data.changeDue !== undefined && data.changeDue !== null ? Number(data.changeDue) : undefined,
+        balanceDue: data.balanceDue !== undefined && data.balanceDue !== null ? Number(data.balanceDue) : undefined,
+        lastCollectionVoucher: data.lastCollectionVoucher || undefined,
+        settlementNote: data.settlementNote || undefined,
         createdAt: data.createdAt,
       } as SavedSaleRecord;
     });
@@ -233,26 +240,76 @@ export async function saveCreditCollection(record: CreditCollectionRecord): Prom
       amountCollected: record.amountCollected,
       remainingDue: record.remainingDue,
       paymentMode: record.paymentMode,
-      cashAmount: record.cashAmount || null,
-      upiAmount: record.upiAmount || null,
+      cashAmount: record.cashAmount !== undefined && record.cashAmount !== null ? Number(record.cashAmount) : null,
+      upiAmount: record.upiAmount !== undefined && record.upiAmount !== null ? Number(record.upiAmount) : null,
       notes: record.notes || '',
       date: record.date,
       time: record.time,
       createdAt: serverTimestamp(),
     });
 
+    // Helper to apply invoice updates
+    const applyInvoiceUpdate = async (docId: string) => {
+      const isCleared = record.remainingDue <= 0;
+      const invoiceDocRef = doc(db, 'sales', docId);
+      const updateData: Record<string, unknown> = {
+        balanceDue: isCleared ? 0 : record.remainingDue,
+        lastCollectionVoucher: record.voucherNumber,
+        updatedAt: serverTimestamp(),
+      };
+      if (isCleared) {
+        updateData.paymentMode = record.paymentMode === 'UPI' ? 'UPI' : 'CASH';
+        updateData.settledAt = serverTimestamp();
+      } else {
+        updateData.paymentMode = 'CASH_UPI_CREDIT';
+      }
+      await updateDoc(invoiceDocRef, updateData);
+    };
+
     // If an associated invoice ID exists, update its remaining due status
     if (record.invoiceId) {
       try {
-        const invoiceDocRef = doc(db, 'sales', record.invoiceId);
-        await updateDoc(invoiceDocRef, {
-          balanceDue: record.remainingDue,
-          paymentMode: record.remainingDue <= 0 ? 'CASH' : 'DUE', // mark paid or keep due with updated balance
-          lastCollectionVoucher: record.voucherNumber,
-          updatedAt: serverTimestamp(),
-        });
+        await applyInvoiceUpdate(record.invoiceId);
       } catch (updErr) {
-        console.warn('Could not update original invoice balance, collection record saved:', updErr);
+        console.warn('Could not update invoice by invoiceId, collection record saved:', updErr);
+      }
+    } else if (record.invoiceNumber && record.invoiceNumber.trim()) {
+      try {
+        const rawInv = record.invoiceNumber.trim();
+        const cleanInv = rawInv.replace(/^#/, '');
+        const salesRef = collection(db, 'sales');
+        
+        // Try clean invoice number
+        let q = query(salesRef, where('invoiceNumber', '==', cleanInv), limit(1));
+        let snap = await getDocs(q);
+        
+        // If not found, try with hash prefix
+        if (snap.empty) {
+          q = query(salesRef, where('invoiceNumber', '==', `#${cleanInv}`), limit(1));
+          snap = await getDocs(q);
+        }
+
+        if (!snap.empty) {
+          await applyInvoiceUpdate(snap.docs[0].id);
+        }
+      } catch (err) {
+        console.warn('Could not query invoice by invoiceNumber:', err);
+      }
+    } else if (record.customerName && record.customerName.trim()) {
+      // If no invoice was specified, find open DUE sales for this customer and update them
+      try {
+        const salesRef = collection(db, 'sales');
+        const q = query(salesRef, where('customerName', '==', record.customerName.trim()), limit(5));
+        const snap = await getDocs(q);
+        for (const docSnap of snap.docs) {
+          const d = docSnap.data();
+          if (d.paymentMode === 'DUE' || d.paymentMode === 'CASH_UPI_CREDIT' || (d.balanceDue && d.balanceDue > 0)) {
+            await applyInvoiceUpdate(docSnap.id);
+            break; // update the matching open bill
+          }
+        }
+      } catch (custErr) {
+        console.warn('Could not link collection to customer sale:', custErr);
       }
     }
 
@@ -263,7 +320,7 @@ export async function saveCreditCollection(record: CreditCollectionRecord): Prom
   }
 }
 
-export async function getCreditCollections(maxRecords = 50): Promise<CreditCollectionRecord[]> {
+export async function getCreditCollections(maxRecords = 150): Promise<CreditCollectionRecord[]> {
   try {
     const collRef = collection(db, 'credit_collections');
     const q = query(collRef, orderBy('createdAt', 'desc'), limit(maxRecords));
@@ -279,12 +336,12 @@ export async function getCreditCollections(maxRecords = 50): Promise<CreditColle
         customerName: data.customerName || '',
         customerPhone: data.customerPhone || '',
         sellerName: data.sellerName || '',
-        totalDueBefore: data.totalDueBefore || 0,
-        amountCollected: data.amountCollected || 0,
-        remainingDue: data.remainingDue || 0,
+        totalDueBefore: data.totalDueBefore !== undefined ? Number(data.totalDueBefore) : 0,
+        amountCollected: data.amountCollected !== undefined ? Number(data.amountCollected) : 0,
+        remainingDue: data.remainingDue !== undefined ? Number(data.remainingDue) : 0,
         paymentMode: data.paymentMode || 'CASH',
-        cashAmount: data.cashAmount || undefined,
-        upiAmount: data.upiAmount || undefined,
+        cashAmount: data.cashAmount !== undefined && data.cashAmount !== null ? Number(data.cashAmount) : undefined,
+        upiAmount: data.upiAmount !== undefined && data.upiAmount !== null ? Number(data.upiAmount) : undefined,
         notes: data.notes || '',
         date: data.date || '',
         time: data.time || '',
@@ -301,7 +358,8 @@ export async function updateSalePaymentMode(
   saleDocId: string, 
   newPaymentMode: PaymentMode, 
   cashReceived?: number, 
-  notes?: string
+  notes?: string,
+  balanceDue?: number
 ): Promise<boolean> {
   try {
     const saleDocRef = doc(db, 'sales', saleDocId);
@@ -311,12 +369,16 @@ export async function updateSalePaymentMode(
     };
 
     if (newPaymentMode === 'DUE') {
-      updatePayload.balanceDue = null;
+      updatePayload.balanceDue = balanceDue !== undefined ? balanceDue : null;
     } else {
-      updatePayload.balanceDue = 0;
+      updatePayload.balanceDue = balanceDue !== undefined ? balanceDue : 0;
       updatePayload.settledAt = serverTimestamp();
       if (cashReceived !== undefined) {
-        updatePayload.cashReceived = cashReceived;
+        if (newPaymentMode === 'UPI') {
+          updatePayload.upiReceived = cashReceived;
+        } else {
+          updatePayload.cashReceived = cashReceived;
+        }
       }
     }
 

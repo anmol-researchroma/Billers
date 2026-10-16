@@ -83,10 +83,16 @@ export const CreditCollectionModal: React.FC<CreditCollectionModalProps> = ({
     setLoadingSales(true);
     try {
       const allSales = await getSalesHistory(150);
-      // Filter sales that are marked DUE or have balanceDue > 0
+      // Filter sales that have actual pending dues
       const dues = allSales.filter((s) => {
+        if (s.paymentMode === 'CASH' || s.paymentMode === 'UPI' || s.paymentMode === 'CARD') return false;
+        if (s.balanceDue !== undefined && s.balanceDue <= 0) return false;
         if (s.balanceDue !== undefined && s.balanceDue > 0) return true;
         if (s.paymentMode === 'DUE') return true;
+        if (s.paymentMode === 'CASH_UPI_CREDIT') {
+          const paid = (s.cashReceived || 0) + (s.upiReceived || 0);
+          return (s.grandTotal || 0) > paid;
+        }
         return false;
       });
       setDueSales(dues);
@@ -433,9 +439,11 @@ export const CreditCollectionModal: React.FC<CreditCollectionModalProps> = ({
                         </div>
                       )}
                       <div className="flex justify-between text-xs pt-1 border-t border-dashed border-slate-300 font-mono">
-                        <span className="font-bold text-slate-700">Remaining Balance Due:</span>
-                        <strong className={completedVoucher.remainingDue === 0 ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
-                          {completedVoucher.remainingDue === 0 ? '₹0.00 (Fully Settled ✓)' : `₹${completedVoucher.remainingDue.toFixed(2)}`}
+                        <span className="font-bold text-slate-700">
+                          {completedVoucher.remainingDue <= 0 ? 'Account Balance Status:' : 'Remaining Balance Due:'}
+                        </span>
+                        <strong className={completedVoucher.remainingDue <= 0 ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
+                          {completedVoucher.remainingDue <= 0 ? 'PAID IN FULL (₹0.00 Cleared ✓)' : `₹${completedVoucher.remainingDue.toFixed(2)}`}
                         </strong>
                       </div>
                     </div>
@@ -941,8 +949,12 @@ export const CreditCollectionModal: React.FC<CreditCollectionModalProps> = ({
                           <span className="text-base font-black text-emerald-400 font-mono">
                             {formatCurrency(col.amountCollected)}
                           </span>
-                          {col.remainingDue !== undefined && (
-                            <span className="text-[11px] text-[#94A3B8] block">
+                          {col.remainingDue <= 0 ? (
+                            <span className="text-[11px] text-emerald-400 font-bold block">
+                              ✓ Cleared
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-amber-400 font-medium block">
                               Remaining: {formatCurrency(col.remainingDue)}
                             </span>
                           )}

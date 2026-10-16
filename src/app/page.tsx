@@ -293,6 +293,22 @@ export default function BillerPage() {
   // Submit and download screenshot
   const handleSubmitAndDownload = async (cashReceived?: number, upiReceived?: number) => {
     if (items.length === 0) return;
+
+    // Strict restriction: Bill cannot generate without Seller Name, Customer Name, and Customer Phone
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (!sellerName.trim()) {
+      alert('⚠️ Restriction: Seller Name is required to generate the bill.');
+      return;
+    }
+    if (!customerName.trim()) {
+      alert('⚠️ Restriction: Customer Name is required to generate the bill.');
+      return;
+    }
+    if (!customerPhone.trim() || cleanPhone.length < 10) {
+      alert('⚠️ Restriction: A valid 10-digit Customer Mobile Number is required to generate the bill.');
+      return;
+    }
+
     if (cashReceived !== undefined) setCashGiven(cashReceived);
     if (upiReceived !== undefined) setUpiGiven(upiReceived);
 
@@ -380,6 +396,12 @@ export default function BillerPage() {
   };
 
   const handlePrint = () => {
+    if (items.length === 0) return;
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (!sellerName.trim() || !customerName.trim() || !customerPhone.trim() || cleanPhone.length < 10) {
+      alert('⚠️ Restriction: Bill cannot be printed without entering Seller Name, Customer Name, and 10-digit Mobile Number.');
+      return;
+    }
     window.print();
   };
 

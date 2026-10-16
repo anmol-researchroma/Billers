@@ -22,6 +22,7 @@ import {
   ArrowRightLeft,
   HandCoins,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2
 } from 'lucide-react';
 import { formatCurrency, numberToIndianWords } from '@/utils/numberToWords';
@@ -69,6 +70,10 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
   const [cashReceived, setCashReceived] = useState<string>('');
   const [upiReceived, setUpiReceived] = useState<string>('');
 
+  // Validation state for bill generation restriction
+  const [validationError, setValidationError] = useState<string>('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState<boolean>(false);
+
   // Calculations (preserved exact business formulas)
   const subtotal = items.reduce((acc, it) => acc + it.grossAmount, 0);
   const totalDiscount = items.reduce((acc, it) => acc + it.discountAmount, 0);
@@ -92,9 +97,47 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
       : Math.max(0, grandTotal - (cashNum + upiNum))
     : 0;
 
+  // Validation function enforcing restriction: Seller Name, Customer Name, and Phone Number must be provided
+  const validateBillRequirements = (): boolean => {
+    setHasAttemptedSubmit(true);
+
+    if (!sellerName.trim()) {
+      setValidationError('Restriction: Seller Name is required. Bill cannot be generated without entering Seller Name.');
+      document.getElementById('seller-name-input')?.focus();
+      return false;
+    }
+
+    if (!customerName.trim()) {
+      setValidationError('Restriction: Customer Name is required. Bill cannot be generated without entering Customer Name.');
+      document.getElementById('cust-name-input')?.focus();
+      return false;
+    }
+
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (!customerPhone.trim()) {
+      setValidationError('Restriction: Customer Phone / Mobile Number is required. Bill cannot be generated without entering Phone Number.');
+      document.getElementById('cust-phone-input')?.focus();
+      return false;
+    }
+
+    if (cleanPhone.length < 10) {
+      setValidationError('Restriction: Please enter a valid 10-digit mobile number for the customer.');
+      document.getElementById('cust-phone-input')?.focus();
+      return false;
+    }
+
+    setValidationError('');
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
+
+    // Enforce restriction
+    if (!validateBillRequirements()) {
+      return;
+    }
 
     const unpriced = items.filter((it) => it.rate <= 0);
     if (unpriced.length > 0) {
@@ -119,6 +162,14 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
       : undefined;
 
     onSubmitAndDownload(actualCash, actualUpi);
+  };
+
+  const handlePrintClick = () => {
+    if (items.length === 0) return;
+    if (!validateBillRequirements()) {
+      return;
+    }
+    onPrintOnly();
   };
 
   return (
@@ -150,56 +201,90 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
         {/* 1. Seller Name */}
         <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5" htmlFor="seller-name-input">
-            Seller Name
+          <label className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5" htmlFor="seller-name-input">
+            <span>Seller Name</span>
+            <span className="text-[10px] text-rose-400 font-extrabold tracking-normal normal-case">* Required</span>
           </label>
-          <div className="flex items-center h-10 px-3 bg-[#080D19] border border-[#26344A] rounded-lg focus-within:border-[#00C8FF] focus-within:ring-1 focus-within:ring-[#00C8FF]/20 transition-all">
-            <UserCheck className="w-3.5 h-3.5 text-[#00C8FF] mr-2 shrink-0" />
+          <div className={`flex items-center h-10 px-3 bg-[#080D19] border rounded-lg focus-within:ring-1 transition-all ${
+            hasAttemptedSubmit && !sellerName.trim()
+              ? 'border-rose-500/80 ring-1 ring-rose-500/30 bg-rose-500/5'
+              : 'border-[#26344A] focus-within:border-[#00C8FF] focus-within:ring-[#00C8FF]/20'
+          }`}>
+            <UserCheck className={`w-3.5 h-3.5 mr-2 shrink-0 ${hasAttemptedSubmit && !sellerName.trim() ? 'text-rose-400' : 'text-[#00C8FF]'}`} />
             <input
               type="text"
               id="seller-name-input"
               className="w-full bg-transparent px-1 text-xs sm:text-sm text-[#F1F5F9] placeholder-[#94A3B8]/50 outline-none font-medium"
               placeholder="e.g. Anand, Staff 1"
               value={sellerName}
-              onChange={(e) => onUpdateSellerName(e.target.value)}
+              onChange={(e) => {
+                onUpdateSellerName(e.target.value);
+                if (validationError && e.target.value.trim()) setValidationError('');
+              }}
             />
           </div>
+          {hasAttemptedSubmit && !sellerName.trim() && (
+            <p className="text-[10px] text-rose-400 font-medium mt-1">Please enter seller name</p>
+          )}
         </div>
 
         {/* 2. Customer Name */}
         <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5" htmlFor="cust-name-input">
-            Customer Name
+          <label className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5" htmlFor="cust-name-input">
+            <span>Customer Name</span>
+            <span className="text-[10px] text-rose-400 font-extrabold tracking-normal normal-case">* Required</span>
           </label>
-          <div className="flex items-center h-10 px-3 bg-[#080D19] border border-[#26344A] rounded-lg focus-within:border-[#00C8FF] focus-within:ring-1 focus-within:ring-[#00C8FF]/20 transition-all">
-            <User className="w-3.5 h-3.5 text-[#94A3B8] mr-2 shrink-0" />
+          <div className={`flex items-center h-10 px-3 bg-[#080D19] border rounded-lg focus-within:ring-1 transition-all ${
+            hasAttemptedSubmit && !customerName.trim()
+              ? 'border-rose-500/80 ring-1 ring-rose-500/30 bg-rose-500/5'
+              : 'border-[#26344A] focus-within:border-[#00C8FF] focus-within:ring-[#00C8FF]/20'
+          }`}>
+            <User className={`w-3.5 h-3.5 mr-2 shrink-0 ${hasAttemptedSubmit && !customerName.trim() ? 'text-rose-400' : 'text-[#94A3B8]'}`} />
             <input
               type="text"
               id="cust-name-input"
               className="w-full bg-transparent px-1 text-xs sm:text-sm text-[#F1F5F9] placeholder-[#94A3B8]/50 outline-none font-medium"
               placeholder="e.g. Ramesh Kumar"
               value={customerName}
-              onChange={(e) => onUpdateCustomerName(e.target.value)}
+              onChange={(e) => {
+                onUpdateCustomerName(e.target.value);
+                if (validationError && e.target.value.trim()) setValidationError('');
+              }}
             />
           </div>
+          {hasAttemptedSubmit && !customerName.trim() && (
+            <p className="text-[10px] text-rose-400 font-medium mt-1">Please enter customer name</p>
+          )}
         </div>
 
         {/* 3. Customer Phone */}
         <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5" htmlFor="cust-phone-input">
-            Phone / Contact
+          <label className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5" htmlFor="cust-phone-input">
+            <span>Customer Mobile</span>
+            <span className="text-[10px] text-rose-400 font-extrabold tracking-normal normal-case">* Required (10 digits)</span>
           </label>
-          <div className="flex items-center h-10 px-3 bg-[#080D19] border border-[#26344A] rounded-lg focus-within:border-[#00C8FF] focus-within:ring-1 focus-within:ring-[#00C8FF]/20 transition-all">
-            <Phone className="w-3.5 h-3.5 text-[#94A3B8] mr-2 shrink-0" />
+          <div className={`flex items-center h-10 px-3 bg-[#080D19] border rounded-lg focus-within:ring-1 transition-all ${
+            hasAttemptedSubmit && (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10)
+              ? 'border-rose-500/80 ring-1 ring-rose-500/30 bg-rose-500/5'
+              : 'border-[#26344A] focus-within:border-[#00C8FF] focus-within:ring-[#00C8FF]/20'
+          }`}>
+            <Phone className={`w-3.5 h-3.5 mr-2 shrink-0 ${hasAttemptedSubmit && (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) ? 'text-rose-400' : 'text-[#94A3B8]'}`} />
             <input
               type="tel"
               id="cust-phone-input"
-              className="w-full bg-transparent px-1 text-xs sm:text-sm text-[#F1F5F9] placeholder-[#94A3B8]/50 outline-none font-medium"
+              maxLength={15}
+              className="w-full bg-transparent px-1 text-xs sm:text-sm text-[#F1F5F9] placeholder-[#94A3B8]/50 outline-none font-medium font-mono"
               placeholder="e.g. 98765 43210"
               value={customerPhone}
-              onChange={(e) => onUpdateCustomerPhone(e.target.value)}
+              onChange={(e) => {
+                onUpdateCustomerPhone(e.target.value);
+                if (validationError && e.target.value.trim()) setValidationError('');
+              }}
             />
           </div>
+          {hasAttemptedSubmit && (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) && (
+            <p className="text-[10px] text-rose-400 font-medium mt-1">Enter a valid 10-digit number</p>
+          )}
         </div>
       </div>
 
@@ -1089,6 +1174,24 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
         </div>
       </div>
 
+      {/* Validation restriction notice banner */}
+      {validationError ? (
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/40 flex items-start gap-2.5 text-xs text-rose-300 animate-in fade-in duration-150">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <span className="font-bold text-rose-200 block">Bill Generation Restricted</span>
+            <p className="text-[11px] text-rose-300/90 leading-tight mt-0.5">{validationError}</p>
+          </div>
+        </div>
+      ) : (!sellerName.trim() || !customerName.trim() || !customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) ? (
+        <div className="px-3 py-2 rounded-lg bg-[#151F33]/80 border border-amber-500/30 flex items-center gap-2 text-[11px] text-amber-300/90">
+          <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>
+            <strong>Required to generate bill:</strong> Seller Name, Customer Name &amp; 10-digit Phone Number.
+          </span>
+        </div>
+      ) : null}
+
       {/* Primary and Secondary Billing Actions */}
       <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
         <button
@@ -1109,7 +1212,7 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
         <button
           type="button"
           disabled={items.length === 0}
-          onClick={onPrintOnly}
+          onClick={handlePrintClick}
           className="flex items-center justify-center gap-2 h-11 sm:h-12 px-4 rounded-xl text-xs sm:text-sm font-bold text-[#F1F5F9] bg-[#151F33] hover:bg-[#1A263D] border border-[#26344A] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
           title="Print or Save as PDF directly"
         >
