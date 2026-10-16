@@ -34,7 +34,7 @@ export interface InvoiceItem {
   totalAmount: number;
 }
 
-export type PaymentMode = 'CASH' | 'UPI' | 'CARD' | 'SPLIT' | 'DUE';
+export type PaymentMode = 'CASH' | 'UPI' | 'CARD' | 'SPLIT' | 'DUE' | 'CASH_UPI_CREDIT';
 
 export interface InvoiceData {
   invoiceNumber: string;

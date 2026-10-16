@@ -335,6 +335,15 @@ export default function BillerPage() {
 
       const totalCollected = (actualCash || 0) + (actualUpi || 0);
 
+      const calculatedBalanceDue =
+        paymentMode === 'DUE'
+          ? calculatedGrandTotal
+          : paymentMode === 'CASH_UPI_CREDIT'
+          ? Math.max(0, calculatedGrandTotal - totalCollected)
+          : paymentMode === 'SPLIT' && totalCollected < calculatedGrandTotal
+          ? calculatedGrandTotal - totalCollected
+          : undefined;
+
       saveSaleInvoice({
         invoiceNumber,
         date: currentDateStr || getClientDate(),
@@ -351,6 +360,7 @@ export default function BillerPage() {
         cashReceived: actualCash,
         upiReceived: actualUpi,
         changeDue: actualCash && totalCollected > calculatedGrandTotal ? totalCollected - calculatedGrandTotal : undefined,
+        balanceDue: calculatedBalanceDue,
       }).catch((err) => console.error('Cloud backup error:', err));
     } catch (err) {
       console.error('Failed to generate screenshot:', err);
@@ -548,6 +558,15 @@ export default function BillerPage() {
           paymentMode={paymentMode}
           cashReceived={cashGiven}
           upiReceived={upiGiven}
+          balanceDue={
+            paymentMode === 'DUE'
+              ? grandTotal
+              : paymentMode === 'CASH_UPI_CREDIT'
+              ? Math.max(0, grandTotal - ((cashGiven || 0) + (upiGiven || 0)))
+              : paymentMode === 'SPLIT' && ((cashGiven || 0) + (upiGiven || 0)) < grandTotal
+              ? grandTotal - ((cashGiven || 0) + (upiGiven || 0))
+              : undefined
+          }
         />
       </div>
 

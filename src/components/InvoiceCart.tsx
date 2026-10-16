@@ -19,7 +19,10 @@ import {
   Plus,
   Minus,
   UserCheck,
-  ArrowRightLeft
+  ArrowRightLeft,
+  HandCoins,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import { formatCurrency, numberToIndianWords } from '@/utils/numberToWords';
 
@@ -78,8 +81,15 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
   // Change due if cash was tendered above total
   const changeDue = paymentMode === 'CASH' && cashNum > grandTotal
     ? cashNum - grandTotal
-    : paymentMode === 'SPLIT' && (cashNum + upiNum) > grandTotal
+    : (paymentMode === 'SPLIT' || paymentMode === 'CASH_UPI_CREDIT') && (cashNum + upiNum) > grandTotal
     ? (cashNum + upiNum) - grandTotal
+    : 0;
+
+  // Credit / Due amount for CASH_UPI_CREDIT or DUE
+  const creditDue = (paymentMode === 'CASH_UPI_CREDIT' || paymentMode === 'DUE')
+    ? paymentMode === 'DUE'
+      ? grandTotal
+      : Math.max(0, grandTotal - (cashNum + upiNum))
     : 0;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -96,7 +106,7 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
 
     const actualCash = paymentMode === 'CASH'
       ? (cashNum > 0 ? cashNum : grandTotal)
-      : paymentMode === 'SPLIT'
+      : (paymentMode === 'SPLIT' || paymentMode === 'CASH_UPI_CREDIT')
       ? (cashNum > 0 ? cashNum : 0)
       : undefined;
 
@@ -104,6 +114,8 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
       ? grandTotal
       : paymentMode === 'SPLIT'
       ? (upiNum > 0 ? upiNum : Math.max(0, grandTotal - (cashNum > 0 ? cashNum : 0)))
+      : paymentMode === 'CASH_UPI_CREDIT'
+      ? (upiNum > 0 ? upiNum : 0)
       : undefined;
 
     onSubmitAndDownload(actualCash, actualUpi);
@@ -503,17 +515,23 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
             Payment Mode
           </label>
           <span className="text-[10px] text-[#94A3B8]/80">
-            {paymentMode === 'SPLIT' ? 'Mixed Payment: Cash + UPI' : 'Select mode'}
+            {paymentMode === 'SPLIT' 
+              ? 'Split: Cash + UPI' 
+              : paymentMode === 'CASH_UPI_CREDIT'
+              ? 'Multi-Tender: Cash + UPI + Credit'
+              : paymentMode === 'DUE'
+              ? '100% Credit / Udhar'
+              : 'Select mode'}
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
           {/* CASH */}
           <button
             type="button"
             onClick={() => onUpdatePaymentMode('CASH')}
             className={`flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
               paymentMode === 'CASH'
-                ? 'bg-[#10B981]/15 border-[#10B981] text-[#10B981] shadow-md shadow-[#10B981]/10'
+                ? 'bg-[#10B981]/15 border-[#10B981] text-[#10B981] shadow-md shadow-[#10B981]/10 ring-1 ring-[#10B981]/30'
                 : 'bg-[#080D19] border-[#26344A] text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#151F33]'
             }`}
           >
@@ -527,7 +545,7 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
             onClick={() => onUpdatePaymentMode('UPI')}
             className={`flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
               paymentMode === 'UPI'
-                ? 'bg-[#00C8FF]/15 border-[#00C8FF] text-[#00C8FF] shadow-md shadow-[#00C8FF]/10'
+                ? 'bg-[#00C8FF]/15 border-[#00C8FF] text-[#00C8FF] shadow-md shadow-[#00C8FF]/10 ring-1 ring-[#00C8FF]/30'
                 : 'bg-[#080D19] border-[#26344A] text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#151F33]'
             }`}
           >
@@ -538,20 +556,31 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
           {/* SPLIT (CASH + UPI) */}
           <button
             type="button"
-            onClick={() => {
-              onUpdatePaymentMode('SPLIT');
-              if (!cashReceived && !upiReceived && grandTotal > 0) {
-                // Pre-fill prompt if empty
-              }
-            }}
-            className={`col-span-2 sm:col-span-1 flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer relative ${
+            onClick={() => onUpdatePaymentMode('SPLIT')}
+            className={`flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer relative ${
               paymentMode === 'SPLIT'
                 ? 'bg-[#F59E0B]/15 border-[#F59E0B] text-[#F59E0B] shadow-md shadow-[#F59E0B]/10 ring-1 ring-[#F59E0B]/30'
                 : 'bg-[#080D19] border-[#26344A] text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#151F33]'
             }`}
+            title="Split payment between Cash and UPI"
           >
             <ArrowRightLeft className="w-4 h-4 text-[#F59E0B]" />
             <span className="whitespace-nowrap">Cash + UPI</span>
+          </button>
+
+          {/* CASH + UPI + CREDIT (NEW!) */}
+          <button
+            type="button"
+            onClick={() => onUpdatePaymentMode('CASH_UPI_CREDIT')}
+            className={`flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer relative ${
+              paymentMode === 'CASH_UPI_CREDIT'
+                ? 'bg-gradient-to-br from-amber-500/25 via-rose-500/20 to-purple-500/25 border-amber-400 text-amber-300 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/50'
+                : 'bg-[#080D19] border-[#26344A] text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#151F33]'
+            }`}
+            title="Split payment: Cash + UPI + remaining balance on Credit / Due"
+          >
+            <HandCoins className="w-4 h-4 text-amber-400" />
+            <span className="whitespace-nowrap text-[11px] font-black">Cash+UPI+Credit</span>
           </button>
 
           {/* CARD */}
@@ -560,7 +589,7 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
             onClick={() => onUpdatePaymentMode('CARD')}
             className={`flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
               paymentMode === 'CARD'
-                ? 'bg-[#3B82F6]/15 border-[#3B82F6] text-[#3B82F6] shadow-md shadow-[#3B82F6]/10'
+                ? 'bg-[#3B82F6]/15 border-[#3B82F6] text-[#3B82F6] shadow-md shadow-[#3B82F6]/10 ring-1 ring-[#3B82F6]/30'
                 : 'bg-[#080D19] border-[#26344A] text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#151F33]'
             }`}
           >
@@ -574,7 +603,7 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
             onClick={() => onUpdatePaymentMode('DUE')}
             className={`flex flex-col items-center justify-center gap-1 min-h-[56px] p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
               paymentMode === 'DUE'
-                ? 'bg-[#EF4444]/15 border-[#EF4444] text-[#EF4444] shadow-md shadow-[#EF4444]/10'
+                ? 'bg-[#EF4444]/15 border-[#EF4444] text-[#EF4444] shadow-md shadow-[#EF4444]/10 ring-1 ring-[#EF4444]/30'
                 : 'bg-[#080D19] border-[#26344A] text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#151F33]'
             }`}
           >
@@ -708,9 +737,18 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
                   Fully Paid ✓
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">
-                  Pending: {formatCurrency(Math.max(0, grandTotal - (cashNum + upiNum)))}
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">
+                    Pending: {formatCurrency(Math.max(0, grandTotal - (cashNum + upiNum)))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onUpdatePaymentMode('CASH_UPI_CREDIT')}
+                    className="text-[11px] font-bold text-amber-400 hover:text-amber-300 underline cursor-pointer"
+                  >
+                    Leave as Credit (Due)? Switch to Cash+UPI+Credit →
+                  </button>
+                </div>
               )}
             </div>
 
@@ -723,6 +761,205 @@ export const InvoiceCart: React.FC<InvoiceCartProps> = ({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* CASH + UPI + CREDIT PAYMENT BOX */}
+      {paymentMode === 'CASH_UPI_CREDIT' && items.length > 0 && (
+        <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-b from-[#151F33]/90 to-[#0F172A] border border-amber-500/35 flex flex-col gap-3 shadow-xl animate-in fade-in duration-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-[#26344A] gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-xs font-extrabold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <HandCoins className="w-3.5 h-3.5 text-amber-400" />
+                Cash + UPI + Credit Tender
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-[#94A3B8]">Target Total:</span>
+              <strong className="text-[#00C8FF] text-sm">{formatCurrency(grandTotal)}</strong>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Cash Tender Input */}
+            <div className="flex flex-col gap-1.5 bg-[#080D19] p-3 rounded-xl border border-[#26344A] focus-within:border-[#10B981]/60 transition-colors">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-[#10B981] flex items-center gap-1.5">
+                  <Banknote className="w-3.5 h-3.5" /> Cash Received
+                </label>
+                {cashNum > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCashReceived('')}
+                    className="text-[10px] text-[#94A3B8] hover:text-rose-400 transition-colors cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center h-10 bg-[#10182A] border border-[#26344A] focus-within:border-[#10B981] focus-within:ring-1 focus-within:ring-[#10B981]/20 rounded-lg px-2.5">
+                <span className="text-sm text-[#10B981] font-bold mr-1.5 select-none">₹</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={cashReceived}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setCashReceived(e.target.value)}
+                  className="w-full bg-transparent text-sm font-bold text-[#F1F5F9] outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                <span className="text-[10px] text-[#94A3B8] font-semibold">Quick:</span>
+                {['100', '200', '500', '1000'].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setCashReceived(amt)}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#151F33] text-[#94A3B8] hover:text-[#10B981] hover:bg-[#1A263D] transition-colors cursor-pointer border border-[#26344A]"
+                  >
+                    ₹{amt}
+                  </button>
+                ))}
+                {grandTotal > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCashReceived(String(Math.round(grandTotal / 2)))}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#151F33] text-[#94A3B8] hover:text-[#10B981] hover:bg-[#1A263D] transition-colors cursor-pointer border border-[#26344A]"
+                  >
+                    50% (₹{Math.round(grandTotal / 2)})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* UPI Tender Input */}
+            <div className="flex flex-col gap-1.5 bg-[#080D19] p-3 rounded-xl border border-[#26344A] focus-within:border-[#00C8FF]/60 transition-colors">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-[#00C8FF] flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5" /> UPI / Online Received
+                </label>
+                {upiNum > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setUpiReceived('')}
+                    className="text-[10px] text-[#94A3B8] hover:text-rose-400 transition-colors cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center h-10 bg-[#10182A] border border-[#26344A] focus-within:border-[#00C8FF] focus-within:ring-1 focus-within:ring-[#00C8FF]/20 rounded-lg px-2.5">
+                <span className="text-sm text-[#00C8FF] font-bold mr-1.5 select-none">₹</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={upiReceived}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setUpiReceived(e.target.value)}
+                  className="w-full bg-transparent text-sm font-bold text-[#F1F5F9] outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                <span className="text-[10px] text-[#94A3B8] font-semibold">Quick:</span>
+                {['100', '200', '500', '1000'].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setUpiReceived(amt)}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#151F33] text-[#94A3B8] hover:text-[#00C8FF] hover:bg-[#1A263D] transition-colors cursor-pointer border border-[#26344A]"
+                  >
+                    ₹{amt}
+                  </button>
+                ))}
+                {cashNum > 0 && grandTotal > cashNum && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rem = Math.max(0, grandTotal - cashNum);
+                      setUpiReceived(String(Math.round(rem * 100) / 100));
+                    }}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#00C8FF]/15 text-[#00C8FF] hover:bg-[#00C8FF]/25 transition-colors cursor-pointer border border-[#00C8FF]/30"
+                  >
+                    Fill Rest in UPI (₹{Math.max(0, grandTotal - cashNum).toFixed(0)})
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 3-Way Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+            {/* Cash Paid */}
+            <div className="p-2.5 rounded-lg bg-[#080D19] border border-[#10B981]/30 flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#10B981] flex items-center gap-1">
+                <Banknote className="w-3 h-3" /> Cash Paid
+              </span>
+              <span className="text-base font-black font-mono text-[#F1F5F9] mt-0.5">
+                {formatCurrency(cashNum)}
+              </span>
+            </div>
+
+            {/* UPI Paid */}
+            <div className="p-2.5 rounded-lg bg-[#080D19] border border-[#00C8FF]/30 flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#00C8FF] flex items-center gap-1">
+                <QrCode className="w-3 h-3" /> UPI Paid
+              </span>
+              <span className="text-base font-black font-mono text-[#F1F5F9] mt-0.5">
+                {formatCurrency(upiNum)}
+              </span>
+            </div>
+
+            {/* Credit / Balance Due */}
+            <div className="p-2.5 rounded-lg bg-[#080D19] border border-rose-500/40 flex flex-col relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1">
+                  <FileText className="w-3 h-3" /> Balance on Credit
+                </span>
+                {creditDue > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+              </div>
+              <span className="text-base font-black font-mono text-rose-300 mt-0.5">
+                {formatCurrency(creditDue)}
+              </span>
+            </div>
+          </div>
+
+          {/* Credit Guidance Note & Alert */}
+          {creditDue > 0 ? (
+            <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-start gap-2 text-xs text-rose-200">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">
+                  ₹{creditDue.toFixed(2)} will remain as Customer Credit (Due).
+                </span>
+                {!customerName.trim() && (
+                  <span className="block text-[11px] text-amber-300 font-semibold mt-0.5">
+                    ⚠️ Enter Customer Name &amp; Phone above to track this credit in the Khata / Due ledger!
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2 text-xs text-emerald-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-bold">
+                100% Covered by Cash &amp; UPI. No credit balance remaining.
+              </span>
+            </div>
+          )}
+
+          {changeDue > 0 && (
+            <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-xs text-emerald-300">
+              <span className="font-bold">Cash Overpayment:</span>
+              <span className="font-mono font-black text-sm">
+                Change to Return: {formatCurrency(changeDue)}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

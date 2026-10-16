@@ -16,6 +16,7 @@ export interface PrintableBillProps {
   paymentMode: PaymentMode;
   cashReceived?: number;
   upiReceived?: number;
+  balanceDue?: number;
 }
 
 export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
@@ -32,6 +33,7 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
       paymentMode,
       cashReceived,
       upiReceived,
+      balanceDue,
     },
     ref
   ) => {
@@ -58,6 +60,13 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
     const totalDiscount = items.reduce((acc, it) => acc + it.discountAmount, 0);
     const grandTotal = items.reduce((acc, it) => acc + it.totalAmount, 0);
     const changeReturn = cashReceived && cashReceived > grandTotal ? cashReceived - grandTotal : 0;
+    const effectiveBalanceDue = balanceDue !== undefined
+      ? balanceDue
+      : paymentMode === 'DUE'
+      ? grandTotal
+      : paymentMode === 'CASH_UPI_CREDIT'
+      ? Math.max(0, grandTotal - ((cashReceived || 0) + (upiReceived || 0)))
+      : 0;
 
     return (
       <div className="invoice-capture-wrapper" ref={ref} id="printable-bill-element">
@@ -170,6 +179,11 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
             background: #fef3c7;
             color: #92400e;
             border: 1px solid #fcd34d;
+          }
+          .bill-meta-pill.paid-cash_upi_credit {
+            background: #fff1f2;
+            color: #be123c;
+            border: 1px solid #fda4af;
           }
           .bill-number-text {
             font-family: monospace;
@@ -331,7 +345,13 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
           <div className="bill-meta-right">
             <div className="bill-invoice-title">RETAIL BILL</div>
             <div className={`bill-meta-pill paid-${paymentMode.toLowerCase()}`}>
-              {paymentMode === 'SPLIT' ? 'SPLIT (CASH + UPI)' : `PAID VIA ${paymentMode}`}
+              {paymentMode === 'SPLIT' 
+                ? 'SPLIT (CASH + UPI)' 
+                : paymentMode === 'CASH_UPI_CREDIT'
+                ? 'CASH + UPI + CREDIT'
+                : paymentMode === 'DUE'
+                ? 'CREDIT / DUE'
+                : `PAID VIA ${paymentMode}`}
             </div>
             <div className="bill-number-text">
               Bill No: {invoiceNumber}
@@ -445,6 +465,50 @@ export const PrintableBill = forwardRef<HTMLDivElement, PrintableBillProps>(
                     Change Returned: ₹{changeReturn.toFixed(2)}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* CASH + UPI + CREDIT Breakdown */}
+            {paymentMode === 'CASH_UPI_CREDIT' && (
+              <div style={{ marginTop: '14px', padding: '10px 12px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '4px', fontSize: '0.8rem', color: '#1e293b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontWeight: 800, color: '#92400e' }}>Payment Breakdown (Cash + UPI + Credit):</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#fee2e2', color: '#b91c1c', borderRadius: '3px', border: '1px solid #fca5a5' }}>
+                    PARTIAL CREDIT
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                  <span><strong>Cash Paid:</strong> ₹{(cashReceived || 0).toFixed(2)}</span>
+                  <span><strong>UPI / Online:</strong> ₹{(upiReceived || 0).toFixed(2)}</span>
+                  <span><strong>Total Received:</strong> ₹{((cashReceived || 0) + (upiReceived || 0)).toFixed(2)}</span>
+                </div>
+                <div style={{ paddingTop: '6px', borderTop: '1px dashed #f59e0b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#b91c1c', fontWeight: 800, fontSize: '0.86rem' }}>
+                    Remaining Due on Credit: ₹{effectiveBalanceDue.toFixed(2)}
+                  </span>
+                  <span style={{ fontSize: '0.74rem', color: '#78350f', fontWeight: 600 }}>
+                    Pending Balance
+                  </span>
+                </div>
+                {changeReturn > 0 && (
+                  <div style={{ marginTop: '4px', color: '#15803d', fontWeight: 600 }}>
+                    Change Returned: ₹{changeReturn.toFixed(2)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {paymentMode === 'DUE' && (
+              <div style={{ marginTop: '14px', padding: '10px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '4px', fontSize: '0.8rem', color: '#991b1b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong>Credit Memo (100% Udhar):</strong>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', background: '#ef4444', color: '#ffffff', borderRadius: '3px' }}>
+                    FULL CREDIT
+                  </span>
+                </div>
+                <div style={{ marginTop: '4px', fontSize: '0.82rem', fontWeight: 700 }}>
+                  Total Balance Due: ₹{grandTotal.toFixed(2)} (Payment Pending)
+                </div>
               </div>
             )}
 

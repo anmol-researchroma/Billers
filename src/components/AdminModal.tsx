@@ -473,8 +473,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   // Filtered sales
   const filteredSales = salesRecords.filter((sale) => {
-    if (salesFilterMode === 'DUE' && sale.paymentMode !== 'DUE') return false;
-    if (salesFilterMode === 'PAID' && sale.paymentMode === 'DUE') return false;
+    const isDueSale = sale.paymentMode === 'DUE' || (sale.balanceDue !== undefined && sale.balanceDue > 0);
+    if (salesFilterMode === 'DUE' && !isDueSale) return false;
+    if (salesFilterMode === 'PAID' && isDueSale) return false;
     if (!salesSearchQuery.trim()) return true;
     const q = salesSearchQuery.toLowerCase();
     return (
@@ -488,9 +489,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   // Calculate totals
   const totalSalesRevenue = salesRecords.reduce((acc, s) => acc + (s.grandTotal || 0), 0);
-  const totalDuePending = salesRecords
-    .filter((s) => s.paymentMode === 'DUE')
-    .reduce((acc, s) => acc + (s.grandTotal || 0), 0);
+  const totalDuePending = salesRecords.reduce((acc, s) => {
+    if (s.balanceDue !== undefined && s.balanceDue > 0) return acc + s.balanceDue;
+    if (s.paymentMode === 'DUE') return acc + (s.grandTotal || 0);
+    return acc;
+  }, 0);
 
   if (!isOpen) return null;
 
@@ -1100,7 +1103,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       >
                         <span>Pending Due / Credit</span>
                         <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-950/60 font-mono">
-                          {salesRecords.filter((s) => s.paymentMode === 'DUE').length}
+                          {salesRecords.filter((s) => s.paymentMode === 'DUE' || (s.balanceDue !== undefined && s.balanceDue > 0)).length}
                         </span>
                       </button>
 
@@ -1113,7 +1116,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             : 'bg-slate-800 text-slate-400 hover:text-white'
                         }`}
                       >
-                        Paid Invoices ({salesRecords.filter((s) => s.paymentMode !== 'DUE').length})
+                        Paid Invoices ({salesRecords.filter((s) => s.paymentMode !== 'DUE' && !(s.balanceDue !== undefined && s.balanceDue > 0)).length})
                       </button>
                     </div>
                   </div>
@@ -1175,6 +1178,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                       ? 'bg-sky-500/10 text-sky-300 border border-sky-500/25'
                                       : sale.paymentMode === 'SPLIT'
                                       ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25'
+                                      : sale.paymentMode === 'CASH_UPI_CREDIT'
+                                      ? 'bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-purple-500/15 text-amber-300 border border-amber-500/35'
                                       : sale.paymentMode === 'DUE'
                                       ? 'bg-rose-500/10 text-rose-300 border border-rose-500/25'
                                       : 'bg-purple-500/10 text-purple-300 border border-purple-500/25'
@@ -1182,6 +1187,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 >
                                   {sale.paymentMode === 'SPLIT'
                                     ? `SPLIT (Cash: ₹${sale.cashReceived || 0} + UPI: ₹${sale.upiReceived || 0})`
+                                    : sale.paymentMode === 'CASH_UPI_CREDIT'
+                                    ? `CASH+UPI+DUE (Cash: ₹${sale.cashReceived || 0} | UPI: ₹${sale.upiReceived || 0} | Due: ₹${sale.balanceDue ?? Math.max(0, (sale.grandTotal || 0) - ((sale.cashReceived || 0) + (sale.upiReceived || 0)))})`
                                     : sale.paymentMode}
                                 </span>
                                 <span className="text-xs text-slate-400">
@@ -1222,7 +1229,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 </button>
 
                                 {/* Power of Admin to change DUE to PAID */}
-                                {sale.paymentMode === 'DUE' ? (
+                                {sale.paymentMode === 'DUE' || (sale.balanceDue !== undefined && sale.balanceDue > 0) ? (
                                   <button
                                     type="button"
                                     onClick={() => handleInitiateSettle(sale)}
@@ -1644,6 +1651,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     paymentMode={previewSlipSale.paymentMode}
                     cashReceived={previewSlipSale.cashReceived}
                     upiReceived={previewSlipSale.upiReceived}
+                    balanceDue={previewSlipSale.balanceDue}
                   />
                 </div>
               </div>
@@ -1679,6 +1687,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             paymentMode={activeSlipSale.paymentMode}
             cashReceived={activeSlipSale.cashReceived}
             upiReceived={activeSlipSale.upiReceived}
+            balanceDue={activeSlipSale.balanceDue}
           />
         )}
       </div>
